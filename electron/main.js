@@ -1,14 +1,73 @@
-const { app, BrowserWindow } = require('electron/main')
+const {app, BrowserWindow, ipcMain} = require('electron/main')
 const path = require('path')
 const fs = require("fs");
+const Store = require('electron-store');
 
-function createWindow () {
-    const win = new BrowserWindow({
+const store = new Store();
+
+let win = null
+
+const baseUrl = 'C:\\app\\Code\\Frontent\\ev\\src\\assets\\test'
+
+const result = getAllFiles(baseUrl);
+
+for (let i in result) {
+    for (let j in result[i]) {
+        console.log(result[i][j])
+        let res = fs.readFileSync(result[i][j], 'utf-8')
+        result[i][j] = res
+    }
+}
+
+store.set('fileData', result)
+
+const fileData = store.get('fileData')
+
+function getAllFiles(dir) {
+    const files = {};
+
+    // 获取指定路径下的所有文件和文件夹
+    const items = fs.readdirSync(dir);
+
+    items.forEach((item) => {
+        const itemPath = path.join(dir, item);
+        const stat = fs.statSync(itemPath);
+
+        // 如果是文件，则将文件名添加到结果对象中
+        if (stat.isFile()) {
+            files[item] = itemPath;
+        }
+        // 如果是文件夹，则递归调用该函数，并将结果对象添加到当前对象的属性中
+        else if (stat.isDirectory()) {
+            files[item] = getAllFiles(itemPath);
+        }
+    });
+    return files;
+}
+
+function createWindow() {
+    win = new BrowserWindow({
         width: 800,
         height: 600,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js')
         }
+    })
+    win.webContents.openDevTools({mode: "detach"});
+
+    // win.once('ready-to-show', () => {
+    //     win.show();
+    // });
+
+    ipcMain.on('set-data', (event, value) => {
+        if (value){
+            console.log(win,fileData)
+            win.webContents.send('get-data',fileData)
+        }
+    })
+
+    ipcMain.handle('getFileData', ()=>{
+        return fileData
     })
 
     win.loadURL('http://localhost:5173/')
@@ -29,27 +88,4 @@ app.on('window-all-closed', () => {
         app.quit()
     }
 })
-
-
-const directoryPath = 'C:\\app\\Code\\Frontent\\ev\\src\\components';
-
-fs.readdir(directoryPath, { withFileTypes: true,recursive:true }, (err, files) => {
-    if (err) {
-        console.error('Error reading directory:', err);
-        return;
-    }
-    console.log(files)
-
-    const directories = files.filter(file => file.isDirectory()).map(directory => directory.name);
-    console.log('Subdirectories:', directories);
-});
-
-// 使用 fs.readFile 读取文件内容
-fs.readFile('C:\\app\\Code\\Frontent\\ev\\src\\components\\TheWelcome.vue', 'utf8', (err, data) => {
-    if (err) {
-        console.error('Error reading file:', err);
-        return;
-    }
-    console.log('File content:', data);
-});
 
