@@ -11,15 +11,20 @@ const baseUrl = 'C:\\app\\Code\\Frontent\\ev\\src\\assets\\test'
 
 const result = getAllFiles(baseUrl);
 
-for (let i in result) {
-    for (let j in result[i]) {
-        console.log(result[i][j])
-        let res = fs.readFileSync(result[i][j], 'utf-8')
-        result[i][j] = res
+console.log(result)
+const replaceObjectValues = (obj) => {
+    for (let key in obj) {
+        if (typeof obj[key] === 'object' && obj[key] !== null) {
+            replaceObjectValues(obj[key]);
+        } else {
+            obj[key] = fs.readFileSync(obj[key], 'utf-8')
+        }
     }
+    return obj
 }
 
-store.set('fileData', result)
+
+store.set('fileData', replaceObjectValues(result))
 
 const fileData = store.get('fileData')
 
@@ -60,13 +65,13 @@ function createWindow() {
     // });
 
     ipcMain.on('set-data', (event, value) => {
-        if (value){
-            console.log(win,fileData)
-            win.webContents.send('get-data',fileData)
+        if (value) {
+            console.log(win, fileData)
+            win.webContents.send('get-data', fileData)
         }
     })
 
-    ipcMain.handle('getFileData', ()=>{
+    ipcMain.handle('getFileData', () => {
         return fileData
     })
 
